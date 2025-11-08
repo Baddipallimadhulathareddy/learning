@@ -39,7 +39,7 @@
   - falls back to embedded list if necessary
 */
 
-const API_URL = 'https://type.fit/api/quotes'; // Updated API
+const API_URL = 'https://api.quotable.io/random'; // Corrected back to Quotable API
 const POOL_KEY = 'listening_sentence_pool_v1';
 const POOL_SIZE = 8; // prefetch this many sentences into the pool
 
@@ -143,15 +143,12 @@ async function fetchOneSentenceWithTimeout(ms = 4000) {
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    // type.fit/api/quotes returns an array of {text, author} objects
-    if (data && data.length > 0) {
-      const randomIndex = Math.floor(Math.random() * data.length);
-      return data[randomIndex].text; // Pick a random quote's text
-    }
-    throw new Error('No quotes found');
+    // quotable.io returns { content: "...", author: "..." }
+    if (data && data.content) return data.content;
+    throw new Error('Malformed response');
   } catch (err) {
-    console.error('fetchOneSentenceWithTimeout:', err);
-    logDebug('Fetch error: ' + (err && err.message ? err.message : err));
+    console.error('fetchOneSentenceWithTimeout:', err.name, err.message, 'URL:', API_URL);
+    logDebug('Fetch error: ' + (err && err.message ? err.message : err) + ' at ' + new Date().toLocaleTimeString());
     return null;
   }
 }
@@ -166,7 +163,6 @@ function startListening() {
 
   // secure context check for mic
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-    // still allow but warn user that mic permission might be blocked on some browsers
     console.warn('Not secure origin — microphone permissions may be blocked on some browsers.');
     resultDiv.textContent = 'Note: For consistent microphone access use HTTPS or localhost.';
   } else {
